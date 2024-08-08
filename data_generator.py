@@ -1,75 +1,111 @@
+import pandas as pd
+import numpy as np
 import random
-import string
 from datetime import datetime, timedelta
 
-def random_string(length):
-    return ''.join(random.choices(string.ascii_uppercase, k=length))
+np.random.seed(42)
+random.seed(42)
 
-# generate companies
-companies = [(i, "Company " + random_string(5)) for i in range(1, 11)]
+NUM_COMPANIES = 50
+NUM_USERS = 1000
+NUM_SUPPORT_STAFF = 50
+NUM_TICKETS = 5000
+TICKET_CATEGORIES = ['Technical', 'Billing', 'Account', 'General Inquiry']
 
-# generate users
-users = [(i, "User " + random_string(5), random.randint(1, 10)) for i in range(1, 51)]
+def sql_ready_dates(tables):
+    """why? to smooth things with postgres"""
+    for table in tables:
+        for col in tables[table].columns:
+            if pd.api.types.is_datetime64_any_dtype(tables[table][col]):
+                tables[table][col] = tables[table][col].astype(str)
+            elif pd.api.types.is_numeric_dtype(tables[table][col]):
+                tables[table][col] = tables[table][col].astype(int)
+    return tables
 
-# generate support staff
-support_staff = [(i, "Staff " + random_string(5)) for i in range(1, 11)]
+def support_queue_data_generator():
 
-# generate support tickets
-now = datetime.now()
-support_tickets = [(i, random.randint(1, 50), "Issue " + random_string(10), (now - timedelta(minutes=random.randint(1, 1000))).strftime('%Y-%m-%d %H:%M:%S')) for i in range(1, 101)]
+    company_sizes = np.random.lognormal(mean=2, sigma=1, size=NUM_COMPANIES)
 
-# generate matches
-matches = [(i, random.randint(1, 100), random.randint(1, 10), (now - timedelta(minutes=random.randint(1, 1000))).strftime('%Y-%m-%d %H:%M:%S')) for i in range(1, 51)]
+    companies = pd.DataFrame({
+        'company_id': range(1, NUM_COMPANIES + 1),
+        'company_name': [f'Company_{i}' for i in range(1, NUM_COMPANIES + 1)],
+        'company_size': company_sizes
+    })
 
-with open('data_generation.sql', 'w') as f:
-    f.write("CREATE TABLE companies (\n")
-    f.write("    company_id SERIAL PRIMARY KEY,\n")
-    f.write("    company_name TEXT NOT NULL\n")
-    f.write(");\n\n")
-    
-    f.write("CREATE TABLE users (\n")
-    f.write("    user_id SERIAL PRIMARY KEY,\n")
-    f.write("    name TEXT NOT NULL,\n")
-    f.write("    company_id INTEGER REFERENCES companies(company_id)\n")
-    f.write(");\n\n")
-    
-    f.write("CREATE TABLE support_staff (\n")
-    f.write("    staff_id SERIAL PRIMARY KEY,\n")
-    f.write("    name TEXT NOT NULL\n")
-    f.write(");\n\n")
-    
-    f.write("CREATE TABLE support_tickets (\n")
-    f.write("    ticket_id SERIAL PRIMARY KEY,\n")
-    f.write("    user_id INTEGER REFERENCES users(user_id),\n")
-    f.write("    issue_description TEXT NOT NULL,\n")
-    f.write("    timestamp TIMESTAMP NOT NULL\n")
-    f.write(");\n\n")
-    
-    f.write("CREATE TABLE matches (\n")
-    f.write("    match_id SERIAL PRIMARY KEY,\n")
-    f.write("    ticket_id INTEGER REFERENCES support_tickets(ticket_id),\n")
-    f.write("    staff_id INTEGER REFERENCES support_staff(staff_id),\n")
-    f.write("    match_timestamp TIMESTAMP NOT NULL\n")
-    f.write(");\n\n")
-    
-    f.write("-- Insert companies\n")
-    for company in companies:
-        f.write(f"INSERT INTO companies (company_id, company_name) VALUES ({company[0]}, '{company[1]}');\n")
-    
-    f.write("\n-- Insert users\n")
-    for user in users:
-        f.write(f"INSERT INTO users (user_id, name, company_id) VALUES ({user[0]}, '{user[1]}', {user[2]});\n")
-    
-    f.write("\n-- Insert support staff\n")
-    for staff in support_staff:
-        f.write(f"INSERT INTO support_staff (staff_id, name) VALUES ({staff[0]}, '{staff[1]}');\n")
-    
-    f.write("\n-- Insert support tickets\n")
-    for ticket in support_tickets:
-        f.write(f"INSERT INTO support_tickets (ticket_id, user_id, issue_description, timestamp) VALUES ({ticket[0]}, {ticket[1]}, '{ticket[2]}', '{ticket[3]}');\n")
-    
-    f.write("\n-- Insert matches\n")
-    for match in matches:
-        f.write(f"INSERT INTO matches (match_id, ticket_id, staff_id, match_timestamp) VALUES ({match[0]}, {match[1]}, {match[2]}, '{match[3]}');\n")
+    # normalize company size to obtain a distribution
+    company_size_probs = company_sizes / company_sizes.sum()
 
-print("SQL data generation script created as 'data_generation.sql'.")
+    # users
+    user_company_distribution = np.random.choice(companies['company_id'], NUM_USERS, p=company_size_probs)
+    users = pd.DataFrame({
+        'user_id': range(1, NUM_USERS + 1),
+        'user_name': [f'User_{i}' for i in range(1, NUM_USERS + 1)],
+        'company_id': user_company_distribution
+    })
+
+    # staff table
+    support_staff = pd.DataFrame({
+        'staff_id': range(1, NUM_SUPPORT_STAFF + 1),
+        'staff_name': [f'Staff_{i}' for i in range(1, NUM_SUPPORT_STAFF + 1)],
+        'experience_level': np.random.choice(['Junior', 'Mid', 'Senior'], NUM_SUPPORT_STAFF, p=[0.4, 0.4, 0.2])
+    })
+
+    # tickets
+    def random_date(start, end):
+        return start + timedelta(seconds=random.randint(0, int((end - start).total_seconds())))
+
+    start_date = datetime.now() - timedelta(days=180)
+    end_date = datetime.now()
+
+    ticket_ids = range(1, NUM_TICKETS + 1)
+    user_probs = np.array([0.05 if i <= 100 else 0.95/(NUM_USERS-100) for i in range(1, NUM_USERS + 1)])
+    user_probs = user_probs/user_probs.sum()
+    ticket_data = []
+
+    for ticket_id in ticket_ids:
+        user_id = np.random.choice(users['user_id'], p=user_probs)
+        company_id = users.loc[users['user_id'] == user_id, 'company_id'].values[0]
+        issue_category = np.random.choice(TICKET_CATEGORIES, p=[0.5, 0.2, 0.2, 0.1])
+        created_at = random_date(start_date, end_date)
+        ticket_data.append((ticket_id, user_id, company_id, issue_category, created_at))
+
+    tickets = pd.DataFrame(ticket_data, columns=['ticket_id', 'user_id', 'company_id', 'issue_category', 'created_at'])
+
+    # matches
+    # probability distribution over matching times
+    # how many minutes go by between created_at and matched_at
+    matches = pd.DataFrame({
+        'ticket_id': tickets['ticket_id'],
+        'staff_id': np.random.choice(support_staff['staff_id'], NUM_TICKETS),
+        'matched_at': [random_date(pd.Timestamp(tickets.loc[tickets['ticket_id'] == ticket_id, 'created_at'].values[0]),
+                                   pd.Timestamp(tickets.loc[tickets['ticket_id'] == ticket_id, 'created_at'].values[0]) + pd.Timedelta(seconds = 120 + round(np.random.lognormal(2,1,1)[0]*60))) for ticket_id in ticket_ids]
+    })
+
+    ##### ticket status
+    ticket_status_data = []
+
+    # first active status
+    for ticket_id in ticket_ids:
+        status = 'active'
+        timestamp = pd.Timestamp(matches.loc[tickets['ticket_id'] == ticket_id, 'matched_at'].values[0])
+        ticket_status_data.append((ticket_id, status, timestamp))
+
+    # how long does it take to resolve
+    # first inactive
+    for ticket_id in ticket_ids:
+        status = 'inactive'
+        timestamp = pd.Timestamp(matches.loc[tickets['ticket_id'] == ticket_id, 'matched_at'].values[0]) + pd.Timedelta(seconds = round(np.random.lognormal(3,.3,1)[0]*60))
+        ticket_status_data.append((ticket_id, status, timestamp))
+
+    ticket_status = pd.DataFrame(ticket_status_data, columns=['ticket_id', 'status', 'timestamp'])
+
+    return_dict = {"companies":companies,
+                   "users":users,
+                   "support_staff":support_staff,
+                   "support_tickets":tickets,
+                   "ticket_status":ticket_status,
+                   "matches":matches}
+    
+    return_dict = sql_ready_dates(return_dict)
+
+    return return_dict

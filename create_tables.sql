@@ -1,4 +1,5 @@
--- Create tables
+-- // copy past into supabase sql editor
+
 CREATE TABLE companies (
     company_id SERIAL PRIMARY KEY,
     company_name TEXT NOT NULL,
