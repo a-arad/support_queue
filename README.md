@@ -14,7 +14,3 @@ What we want:
 - A way to monitor the support system (operational dashboard)
 - ideas for how to make the system better (including, what data would be required for such a solution)
 - implement the best idea
-
-##### db connection string:
-
-`postgresql://readonly.isypnmrsdydmdvvnyxce:<password>@aws-0-us-east-1.pooler.supabase.com:6543/postgres`
