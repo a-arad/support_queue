@@ -1,20 +1,14 @@
 import psycopg2
 import pandas as pd
-import numpy as np
 from dotenv import load_dotenv
-import matplotlib.pyplot as plt
-import seaborn as sns
 import os
 import dash
 from dash import dcc, html, Input, Output
 import plotly.graph_objs as go
 
 load_dotenv()
-db_con_string = os.getenv("db_con_string")
-conn = psycopg2.connect(os.getenv("db_con_string"))
-from sklearn.cluster import KMeans
-
-
+db_con_string = os.getenv("READONLY_DB")
+conn = psycopg2.connect(db_con_string)
 
 query_1 = """ 
 
@@ -51,7 +45,6 @@ labels = ['Small', 'Medium', 'Large', 'Very_Large']
 active_support_tickets['size_category'] = pd.cut(active_support_tickets['company_size'], bins = bins, labels= labels)
 
 
-
 app = dash.Dash()
 
 app.layout = html.Div([
@@ -85,6 +78,7 @@ app.layout = html.Div([
     Output('wait_time_plot', 'figure'),
     [Input('resample_type', 'value'),Input('company_size_filter', 'value')]
 )
+
 def update_plot(selected_resampling, selected_size_category):
     
     if selected_size_category == 'All':
@@ -105,7 +99,5 @@ def update_plot(selected_resampling, selected_size_category):
     
     return figure
 
-
-
-app.run_server()
+app.run_server(host="0.0.0.0",port=8080)
 
