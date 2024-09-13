@@ -1,1 +1,1 @@
-web: saas-support-dashboard.py
+web: gunicorn app:app
