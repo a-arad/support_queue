@@ -3,9 +3,9 @@ dash-core-components==2.0.0
 dash-html-components==2.0.0
 dash-table==5.0.0
 plotly==5.13.1
-pandas==1.5.3
-numpy==1.22.0  
+pandas==1.5.34
+numpy==1.22.4  
 gunicorn==20.1.0
-setuptools==58.0.4  
+setuptools==57.5.0  
   
 
