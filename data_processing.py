@@ -1,9 +1,11 @@
 import pandas as pd
 from sqlalchemy import create_engine
 import numpy as np
+import os
 
 def load_and_process():
-    engine = create_engine('postgresql://readonly.isypnmrsdydmdvvnyxce:n5ZLPLyEtq@aws-0-us-east-1.pooler.supabase.com:6543/postgres')
+    db_url = os.getenv('DATABASE_URL', 'postgresql://readonly.isypnmrsdydmdvvnyxce:n5ZLPLyEtq@aws-0-us-east-1.pooler.supabase.com:6543/postgres')
+    engine = create_engine(db_url)
     
     # Creating initial dataframes by reading SQL tables
     df_companies = pd.read_sql('select * from companies', engine)
@@ -64,8 +66,9 @@ def load_and_process():
     dft_dash = df.copy(deep=True)
     
     return df, dftm, dft_dash
-"""
+df, dftm, dft_dash = load_and_process()
+
 if __name__ == '__main__':
     df, dftm, dft_dash = load_and_process()
     print(df.head(2))
-"""    
+  
