@@ -175,4 +175,4 @@ def update_plots(company_size_category, selected_month, date_range):
 
 if __name__ == '__main__':    
     port = int(os.environ.get("PORT", 8051))
-    app.run_server(debug=True, port=port)
+    app.run_server(host="localhost",debug=True, port=port)
