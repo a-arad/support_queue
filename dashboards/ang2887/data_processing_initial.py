@@ -69,6 +69,7 @@ def load_and_process():
     df['waiting_zone'] = df['wait_time_minutes'].apply(assign_waiting_zone)
 
     # two copies of the main dataframe df (dftm, dft_dash)for different purposes(dft_dash for dashboard,dftm for tsa)
+    # two copies of the main dataframe df (dftm, dft_dash)for different purposes(dft_dash for dashboard,dftm for tsa)
     dftm = df.copy(deep=True)
     dftm.set_index('created_at', inplace=True)
 
@@ -78,4 +79,3 @@ def load_and_process():
 
 if __name__ == '__main__':
     df, dftm, dft_dash = load_and_process()
-df.head()
